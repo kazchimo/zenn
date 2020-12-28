@@ -1,0 +1,8 @@
+{
+  "name": "zenn",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/kazchimo/zenn.git",
+  "author": "kazuki <pharcydetip@gmail.com>",
+  "license": "MIT"
+}
