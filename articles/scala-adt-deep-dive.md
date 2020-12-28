@@ -461,13 +461,40 @@ $$
 $$
 
 が成り立つ。
-更に
+更にこれらを繰り返し適用すると、
+
+$$
+\begin{aligned}
+\Bbb List[A] &= \Bbb Nil + \Bbb Cons[A] \\
+            &= \Bbb Nil + \Bbb A * \Bbb List[A] \\
+            &= \Bbb Nil + \Bbb A * (\Bbb Nil + \Bbb Cons[A]) \\
+            &= \Bbb Nil + \Bbb A * \Bbb Nil + \Bbb A * \Bbb Cons[A] \\
+            &= \Bbb Nil + \Bbb A * \Bbb Nil + \Bbb A ^ 2 * \Bbb (\Bbb List[A]) \\
+            &= \Bbb Nil + \Bbb A * \Bbb Nil + \Bbb A ^ 2 * \Bbb Nil + \Bbb A ^ 3 * \Bbb Nil ... \\
+            &= 1 + \Bbb A + \Bbb A ^ 2 + \Bbb A ^ 3 + ... (\because \Bbb Nil = 1)
+\end{aligned}
+$$
+
+のように無限級数になる。
+何じゃこりゃと思えるかもしれないが、実際のデータ型に対応させてみるとわかりやすい。
+`List`はそもそもどんなデータ構造だったかと言うと、任意の長さの`A`の要素を並べたものである。
+例えば空っぽの`List`=`List()`はただ一通りしか存在しない。
+長さが1の`List`は`A`のどの要素を一つ格納するかで$\Bbb A$通りある。
+長さ2の場合は１つ目の格納する要素がどれかで$\Bbb A$通り、２つ目も同様に$\Bbb A$通りあるから全体として$\Bbb A ^ 2$
+...
+長さnの場合は同様に$\Bbb A ^ n$通り。
+という感じになる。
+つまり$1 + \Bbb A + \Bbb A ^ 2 + \Bbb A ^ 3 + ...$の各項は`List`の長さに応じたデータのバリエーションを表している。
+
+さて
+
 
 ## 参考
 - [The algebra (and calculus!) of algebraic data types](https://codewords.recurse.com/issues/three/algebra-and-calculus-of-algebraic-data-types)
 - [Why do functional programmers always talk about algebra(s)?](https://arosien.github.io/fp-and-algebras/#1)
 - [Zippers, Part 2: Zippers as Derivatives](https://pavpanchekha.com/blog/zippers/derivative.html#sec-2)
 - [代数的データ型と初等代数学 - ryota-ka’s blog](https://ryota-ka.hatenablog.com/entry/2018/07/09/110000#f-f0ff00a3)
+- [The Algebra of Algebraic Data Types](https://about.chatroulette.com/posts/algebraic-data-types/)
 
 
 
