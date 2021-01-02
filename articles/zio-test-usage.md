@@ -6,6 +6,11 @@ topics: [zio, scala, test]
 published: false
 ---
 
+## TestConfigの使い方
+- Test周りの設定を行うことができる
+
+### 指定できる値
+
 ## TestAspectの使い方
 - zio testではテストのメタデータをTestAspectを使用して設定する
     - テストのbefore/after挙動やテストを走らせる環境など
