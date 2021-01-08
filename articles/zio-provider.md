@@ -3,7 +3,7 @@ title: "ZIOへの環境Rのprovide方法各種"
 emoji: "💲️"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: [scala, zio]
-published: false
+published: true
 ---
 
 ## はじめに
