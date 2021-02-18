@@ -6,6 +6,6 @@
   "author": "kazuki <pharcydetip@gmail.com>",
   "license": "MIT",
   "dependencies": {
-    "zenn-cli": "^0.1.66"
+    "zenn-cli": "^0.1.73"
   }
 }
