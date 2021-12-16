@@ -526,7 +526,16 @@ zipWithは２つのHListを各要素でzipしてから、zipした各ペア（`(
 ここでひとつ問題があります。
 関数pはmonomorphic、つまり関数インスタンスの実態としてひとつの型に対する処理しか実行できません。
 難しいのでもっと噛み砕いていうと、たとえばひとつの関数でStringに対する処理とIntに関する処理を同時に扱うことが（真にジェネリックな方法では）できないということです。
-当たり前のことを言っていますが、もう少し詳しく見ます。
+更にそれができないからこそ、その様な型を引数として明示する事ができません。
+
+```scala
+(1 :: "a" :: false :: HNil).map(???)
+// このmapの引数の型はどうやって書けばいい？
+// List[T]の場合はf: T => Aの様な型になるが、HListの場合はTがStringだったりIntだったりするのでAny => Aとしか書きようがない。
+// 更にいうと戻り値のAもinputの型それぞれに対して異なる場合も考えられるので、Any => Anyと書くことになる。
+```
+
+もう少し詳しく見ます。
 
 次のような例ではStringとIntに対するどちらかの処理しか行えないことは明らかです。
 これをmonomorphicといいます。
@@ -549,6 +558,7 @@ IntとStringという具体型をTにしたことで、Tに対してどのよう
 
 このようなTに対する情報がなく、何が行えるかの情報がほしいときに活躍するのが型クラスです。
 shapelessは任意の引数型に対して、polymorphicに処理を記述できる機構としてpolymorphic functionを提供しています。
+polymorphic functionは各型に対しての処理をCase型クラスとして抽象化することで型安全性を担保します。
 たとえばIntやString、Tuple2に対してsizeを処理するpolymorphic functionは次のように記述できます。
 （公式からの引用）
 
@@ -579,7 +589,7 @@ res7: Int = 5
 Poly1というのは関数の引数がひとつということです。
 implicitでatを使って各引数型に対しての処理を書けば、それが各型に対しての処理内容になります。
 
-ここではこれ以上詳しくは語りませんが、要は任意の型に対して異なる振る舞いをする関数がほしいということです。
+ここではこれ以上詳しくは語りませんが、要は任意の型に対して異なる振る舞いをする関数とそれを型安全に記述する方法がほしいということです。
 より詳細に知りたい人は、次の記事を参照してください。
 - http://milessabin.com/blog/2012/04/27/shapeless-polymorphic-function-values-1/
 - https://milessabin.com/blog/2012/05/10/shapeless-polymorphic-function-values-2/
@@ -650,9 +660,11 @@ HListは任意のcase classをひとつのデータ型で記述できるプラ�
 
 ## shapeless3のScala3における役割
 前節で整理したとおり、type safeなTypeclass DerivationにはHListとpolymorphic functionのようなものが必要だとわかりました。
+これを踏まえてもう一度Scala3でのTypeclass Derivationとshapeless3の役割を振り返ります。
+つまりHListとpolymorphic functionの様な役目を誰が担っているのかを探った上で、shapeless3がそこでどの様な働きをするかを解明します。
 
 まずHListについて考えます。
-Scala3にはTupleがHListのような役割を担うことができます。
+Scala3ではTupleがHListのような役割を担うことができます。
 2系のTupleはただの値のコンテナであり、そこに定義された操作も貧弱でした。
 しかし3のTupleは拡張やmapなどの処理が定義されており、十分HListとして振る舞えます。
 あとはTupleをフィールドの集まりとしてコンパイルタイムに持ち込む方法ですが、Scala3の標準機能での実装の節で見たとおりMirrorがその役割を果たします。
@@ -661,6 +673,47 @@ Scala3にはTupleがHListのような役割を担うことができます。
 ```scala
 type ProductOf[T] = Mirror.Product { type MirroredType = T; type MirroredMonoType = T; type MirroredElemTypes <: Tuple }
 ```
+
+このようにタプルがHListの様な働きをし、それがコンパイルタイムにScala組み込みの機構によって持ち込まれることがわかりました。
+次はpolymorphic functionです。
+
+Scala3には組み込みでPolymorphic Functionが備わっています。
+
+https://dotty.epfl.ch/docs/reference/new-types/polymorphic-function-types.html
+
+これを使用すればpolymorphic functionが記述できて、Tupleに対してのmapの様な処理が型がついた状態で記述できます。
+実際にScala3のTupleのmapではPolymorphic Functionを用いて引数の型が記述されています。
+
+https://dotty.epfl.ch/api/scala/Tuple.html#map-fffff3e7
+
+```scala
+inline def map[F[_]](f: [t] => (x$1: t) => F[t]): Map[Tuple, F]
+```
+
+TupleとPolymorphic Functionの機構が揃ったことでScala3での型クラス導出の準備は整ったと言えます。
+それを実際に行っているのがderives clauseを使用したTypeclass Derivationです。
+しかしderives clauseを使用したMonoidの節でも述べたとおり、型の表現力が弱かったり処理が煩雑になったりで正直これだけで十分かというとそういう気持ちにはなりません。
+つまり課題はTypeclass Derivationに必要な機構は揃ったが表現力が貧弱ということです。
+
+この課題を解決しようとしているのがshapeless3です。
+shapeless3は型クラス導出時の共通パターンを抜き出してそれをADTのSum、Product型の各々について共通化しています。
+
+例えばMonoidの導出時に使用したメソッド`K0.ProductInstances.map2`は２つの値を受け取り、そのフィールド各々に型クラスの処理を施すようなパターンで使用されています。
+`K0.ProductInstances.construct`は各フィールドの型クラスのインスタンスからフィールドの値を生成するようなパターンです。
+他にもmapやfold系の処理がパターンとして切り出されています。
+
+https://github.com/typelevel/shapeless-3/blob/main/modules/deriving/src/main/scala/shapeless3/deriving/kinds.scala#L103
+
+更にProductInstancesなどはMirrorから導出されているので、Mirrorが使えるところでは常に導出される形になっています。
+
+この様にパターンをうまく使用することで、Scala3標準のTypeclass Derivationと適合する形でより簡易に安全に型クラスの導出を記述できるようになります。
+
+## まとめ
+shapeless3はScala3のTypeclass Derivationの機構に上乗せされる形で、型クラスの導出の記述をより簡易にするものだということがわかりました。
+しかしこれはshapeless3の機能のほんの一部でしかなく、他にもshapeless2ではうまく扱えなかったような高カインド型に対しての型クラス導出機能などあります。
+気になる方はコードベースを覗いてみても面白いかもしれません。
+
+https://github.com/typelevel/shapeless-3/blob/main/modules/deriving/src/test/scala/shapeless3/deriving/deriving.scala
 
 ## 参考
 - https://youtu.be/CFyypCbLRAo
