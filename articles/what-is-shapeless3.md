@@ -1,9 +1,9 @@
 ---
 title: "shapeless3とTypeclass Derivation"
-emoji: "🐥"
+emoji: "🧩"
 type: "tech" # tech: 技術記事 / idea: アイデア
 topics: ["Scala", "関数型プログラミング", "型クラス", "shapeless"]
-published: false
+published: true
 ---
 
 ## 始めに
