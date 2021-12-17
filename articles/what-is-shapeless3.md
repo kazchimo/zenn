@@ -29,14 +29,14 @@ https://github.com/milessabin/shapeless
 
 依存型とは値に依存した型のことです。
 Scalaではdependent method typeを利用して依存型を実現します。
-詳しくは[このドキュメント](https://docs.scala-lang.org/scala3/book/types-dependent-function.html)をしてください。
+詳しくは[このドキュメント](https://docs.scala-lang.org/scala3/book/types-dependent-function.html)を参照してください。
 shapelessでは型レベルの計算を表現するときに活躍します。
 
 またこの場合の「ジェネリックなプログラミング」とはADT（sealed trait/case class/case object/scala3のenum）に対するプログラミング程度に考えるとよいです。
 たとえば通常のプログラミングではDogやCatなどの具体型に対して処理を書くことになりますが、ジェネリックなプログラミングではADTであるという知識だけを用いてプログラミングします。
-逆にいえば、ADTであるという知識をプログラミングに落とし込めるものがジェネリックなプログラミングスタイルといえるでしょう。
+逆にいえば、ADTであるという知識をプログラミングに落とし込めるものがジェネリックなプログラミングスタイルと言えるでしょう。
 
-以降の解説では簡単のため、主にcase classに対してのジェネリックプログラミングについて見ていきます。
+以降の解説では簡単のため、主にcase class（ADTでいうProduct型）に対してのジェネリックプログラミングについて見ていきます。
 
 ### shapelessの用途
 さまざまな機能がありますが、よく使われる機能には次のようなものがあります。
@@ -126,7 +126,7 @@ object Monoid:
     def combine(x: String, y: String): String = x+y
 ```
 
-そして最も重要な部分がジェネリックなインスタンスを定義してそれをderivedに渡している部分です。
+そしてもっとも重要な部分がジェネリックなインスタンスを定義してそれをderivedに渡している部分です。
 derivedメソッドはScala3に加わったTypeclass derivationのためのメソッドです。
 詳しくは次の記事を参照してください。
 
@@ -156,7 +156,7 @@ val c = a |+| b // == ISB(36, "foobar", true)
 ```
 
 このようにshapeless3を使用することでTypeclass derivationを行うことができました。
-しかし肝心のderiveのしくみがよくわかっていません。
+しかし肝心のderiveの中でやっていることがよくわかりません。
 このしくみを理解することを目標に少し遠回りします。
 
 ## 標準機能のみを用いたderivation
@@ -526,7 +526,7 @@ zipWithは２つのHListを各要素でzipしてから、zipした各ペア（`(
 ここでひとつ問題があります。
 関数pはmonomorphic、つまり関数インスタンスの実態としてひとつの型に対する処理しか実行できません。
 難しいのでもっと噛み砕いていうと、たとえばひとつの関数でStringに対する処理とIntに関する処理を同時に扱うことが（真にジェネリックな方法では）できないということです。
-更にそれができないからこそ、その様な型を引数として明示する事ができません。
+さらにそれができないからこそ、そのような型を引数として明示できません。
 
 ```scala
 (1 :: "a" :: false :: HNil).map(???)
@@ -661,8 +661,9 @@ HListは任意のcase classをひとつのデータ型で記述できるプラ�
 ## shapeless3のScala3における役割
 前節で整理したとおり、type safeなTypeclass DerivationにはHListとpolymorphic functionのようなものが必要だとわかりました。
 これを踏まえてもう一度Scala3でのTypeclass Derivationとshapeless3の役割を振り返ります。
-つまりHListとpolymorphic functionの様な役目を誰が担っているのかを探った上で、shapeless3がそこでどの様な働きをするかを解明します。
+つまりHListとpolymorphic functionのような役目を誰が担っているのかを探った上で、shapeless3がそこでどのような働きをするかを解明します。
 
+### Scala3におけるHListとpolymorphic function
 まずHListについて考えます。
 Scala3ではTupleがHListのような役割を担うことができます。
 2系のTupleはただの値のコンテナであり、そこに定義された操作も貧弱でした。
@@ -674,44 +675,45 @@ Scala3ではTupleがHListのような役割を担うことができます。
 type ProductOf[T] = Mirror.Product { type MirroredType = T; type MirroredMonoType = T; type MirroredElemTypes <: Tuple }
 ```
 
-このようにタプルがHListの様な働きをし、それがコンパイルタイムにScala組み込みの機構によって持ち込まれることがわかりました。
+しかしTupleは型としてしか存在しないので、実際の処理はMirroredElemTypesなどのTupleでsummoningしつつフィールドをiteratorでぶん回すのが常套手段です。
+つまり型レベルではHList的な役割を持ち込むのに成功していますが、値レベルではProductとしか持ち込めていないということです。
+ここがScala3標準のTypeclass Derivationの弱いところです。
+
 次はpolymorphic functionです。
 
-Scala3には組み込みでPolymorphic Functionが備わっています。
+Scala3には組込みPolymorphic Functionが備わっています。
 
 https://dotty.epfl.ch/docs/reference/new-types/polymorphic-function-types.html
 
-これを使用すればpolymorphic functionが記述できて、Tupleに対してのmapの様な処理が型がついた状態で記述できます。
-実際にScala3のTupleのmapではPolymorphic Functionを用いて引数の型が記述されています。
+これを使用すればpolymorphic functionが記述できて、引数型に使用することでHListに対するmapの引数型のようなものが記述できます。
+しかし前述したとおり、HListは値レベルには存在しないので残念ながらこのままだとあまり活躍の機会がありません。
 
-https://dotty.epfl.ch/api/scala/Tuple.html#map-fffff3e7
-
-```scala
-inline def map[F[_]](f: [t] => (x$1: t) => F[t]): Map[Tuple, F]
-```
-
-TupleとPolymorphic Functionの機構が揃ったことでScala3での型クラス導出の準備は整ったと言えます。
-それを実際に行っているのがderives clauseを使用したTypeclass Derivationです。
-しかしderives clauseを使用したMonoidの節でも述べたとおり、型の表現力が弱かったり処理が煩雑になったりで正直これだけで十分かというとそういう気持ちにはなりません。
-つまり課題はTypeclass Derivationに必要な機構は揃ったが表現力が貧弱ということです。
+### shapeless3が果たす役割
+このようにScala3の標準機能だけではiteratorを回すしかない場面がいくつかあります。
+Tupleを持ちつつも型安全性が失われているのは、型としてはフィールドを表現するTupleが存在しつつも値としてうまく取り扱いできないことが大きいです。
 
 この課題を解決しようとしているのがshapeless3です。
 shapeless3は型クラス導出時の共通パターンを抜き出してそれをADTのSum、Product型の各々について共通化しています。
+普通に書くとAnyが入ったiteratorを回して処理を書くようなところを、polymorphic functionを使用して型安全に記述できます。
 
-例えばMonoidの導出時に使用したメソッド`K0.ProductInstances.map2`は２つの値を受け取り、そのフィールド各々に型クラスの処理を施すようなパターンで使用されています。
+たとえばMonoidの導出時に使用したメソッド`K0.ProductInstances.map2`は２つの値を受け取り、そのフィールド各々に型クラスの処理を施すようなパターンで使用されています。
 `K0.ProductInstances.construct`は各フィールドの型クラスのインスタンスからフィールドの値を生成するようなパターンです。
-他にもmapやfold系の処理がパターンとして切り出されています。
+ほかにもmapやfold系の処理がパターンとして切り出されています。
+イメージとしては中身はAnyのiteratorの処理であるところを、パターン集のインタフェースでラップして型を付け足感じでしょうか。
 
-https://github.com/typelevel/shapeless-3/blob/main/modules/deriving/src/main/scala/shapeless3/deriving/kinds.scala#L103
+ProductInstancesなどはMirrorから導出されているので、Mirrorが使えるところでは常に導出される形になっています。
 
-更にProductInstancesなどはMirrorから導出されているので、Mirrorが使えるところでは常に導出される形になっています。
+shapeless3はshapeless2で行っていたHList+polymorphic functionの組み合わせをScala3流に翻訳したものだと考えることもできます。
+3ではHListへは変換せず、今まではHListに直接記述していたような低レベルな処理をラップしpolymorphic functionで型を付けたような形になっています。
+HListは値レベルでは直接存在しませんが、型としては存在するのでインタフェースを構成したり、summoningには必要十分です。
+さらにいう並ばHListへの処理を実際に挟まないのでそのぶん効率的だともいえます。
 
-この様にパターンをうまく使用することで、Scala3標準のTypeclass Derivationと適合する形でより簡易に安全に型クラスの導出を記述できるようになります。
+このように型クラス導出時の処理のパターンをうまく使用することで、Scala3標準のTypeclass Derivationと適合する形でより簡易に安全に型クラスの導出を記述できます。
 
 ## まとめ
 shapeless3はScala3のTypeclass Derivationの機構に上乗せされる形で、型クラスの導出の記述をより簡易にするものだということがわかりました。
-しかしこれはshapeless3の機能のほんの一部でしかなく、他にもshapeless2ではうまく扱えなかったような高カインド型に対しての型クラス導出機能などあります。
-気になる方はコードベースを覗いてみても面白いかもしれません。
+しかしこれはshapeless3の機能のほんの一部でしかなく、ほかにもshapeless2ではうまく扱えなかったような高カインド型に対しての型クラス導出機能などあります。
+気になる方はコードベースを覗いてみてもおもしろいかもしれません。
 
 https://github.com/typelevel/shapeless-3/blob/main/modules/deriving/src/test/scala/shapeless3/deriving/deriving.scala
 
